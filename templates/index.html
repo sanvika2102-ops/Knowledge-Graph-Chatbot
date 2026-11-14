@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyGraph — Knowledge Graph Q&A</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        body {
+            background-color: #f3f4f6;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 720px;
+            height: 92vh;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Prevents input bar from getting pushed off-screen */
+        }
+        .chat-header {
+            padding: 16px 20px;
+            background: #1e293b;
+            color: #ffffff;
+            flex-shrink: 0;
+        }
+        .chat-header h1 {
+            font-size: 1.15rem;
+            font-weight: 600;
+        }
+        .chat-header p {
+            font-size: 0.82rem;
+            color: #cbd5e1;
+            margin-top: 3px;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto; /* Makes only the message area scroll */
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .message {
+            max-width: 82%;
+            padding: 12px 15px;
+            border-radius: 10px;
+            font-size: 0.94rem;
+            line-height: 1.5;
+            white-space: pre-line;
+        }
+        .bot-message {
+            background: #f1f5f9;
+            color: #0f172a;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+        .user-message {
+            background: #2563eb;
+            color: #ffffff;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+        .quick-prompts {
+            padding: 8px 16px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+        .quick-btn {
+            background: #e2e8f0;
+            border: none;
+            border-radius: 16px;
+            padding: 5px 11px;
+            font-size: 0.78rem;
+            color: #334155;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .quick-btn:hover {
+            background: #cbd5e1;
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 14px 16px;
+            background: #ffffff;
+            border-top: 1px solid #e2e8f0;
+            gap: 10px;
+            flex-shrink: 0; /* Locks the input bar at the bottom */
+        }
+        .chat-input-area input {
+            flex: 1;
+            padding: 11px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+        }
+        .chat-input-area input:focus {
+            border-color: #2563eb;
+        }
+        .chat-input-area button {
+            padding: 11px 20px;
+            background: #2563eb;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .chat-input-area button:hover {
+            background: #1d4ed8;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>StudyGraph — CSE Knowledge Graph Assistant</h1>
+            <p>Ask about Definitions, Prerequisites, Roadmaps, Domains, Paths, or Examples</p>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+            <div class="message bot-message">Hello! Ask me any question about CSE subjects in the Knowledge Graph (e.g., Machine Learning, Data Structures, Algorithms, DBMS, Operating Systems).</div>
+        </div>
+
+        <div class="quick-prompts">
+            <button class="quick-btn" onclick="sendQuick('What is Machine Learning?')">Definition</button>
+            <button class="quick-btn" onclick="sendQuick('How to prepare for Machine Learning?')">Preparation</button>
+            <button class="quick-btn" onclick="sendQuick('What are the prerequisites of Algorithms?')">Prerequisites</button>
+            <button class="quick-btn" onclick="sendQuick('What topics are related to Data Structures?')">Related Topics</button>
+            <button class="quick-btn" onclick="sendQuick('Which domain does Digital Logic belong to?')">Domain</button>
+            <button class="quick-btn" onclick="sendQuick('Find the path from Programming in C to Machine Learning')">Path (BFS)</button>
+            <button class="quick-btn" onclick="sendQuick('Give examples of DBMS')">Examples</button>
+        </div>
+
+        <form class="chat-input-area" id="chat-form">
+            <input type="text" id="question-input" placeholder="Type your question here..." autocomplete="off" required>
+            <button type="submit" id="send-btn">Send</button>
+        </form>
+    </div>
+
+    <script>
+        const chatForm = document.getElementById("chat-form");
+        const questionInput = document.getElementById("question-input");
+        const chatMessages = document.getElementById("chat-messages");
+
+        function appendMessage(text, className) {
+            const msgDiv = document.createElement("div");
+            msgDiv.className = "message " + className;
+            msgDiv.textContent = text;
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function sendQuick(text) {
+            questionInput.value = text;
+            chatForm.dispatchEvent(new Event("submit"));
+        }
+
+        chatForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            appendMessage(question, "user-message");
+            questionInput.value = "";
+            questionInput.focus();
+
+            try {
+                const response = await fetch("/api/ask", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ question })
+                });
+                const data = await response.json();
+                appendMessage(data.answer || "No response received.", "bot-message");
+            } catch (err) {
+                appendMessage("Error connecting to the server.", "bot-message");
+            }
+        });
+    </script>
+</body>
+</html>
